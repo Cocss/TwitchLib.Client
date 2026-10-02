@@ -667,7 +667,14 @@ namespace TwitchLib.Client
         {
             await SendHandshake();
 
-            foreach (var channel in _joinedChannelManager.GetJoinedChannels())
+            // The channels are joined again on the new connection, and QueueingJoinCheckAsync adds each of them
+            // back to the manager when its JOIN is sent. Clearing the manager after queueing removed them again:
+            // JoinedChannels stayed empty although the client was back in the channels,
+            // and sending a message threw BadStateException.
+            var channels = _joinedChannelManager.GetJoinedChannels();
+            _joinedChannelManager.Clear();
+
+            foreach (var channel in channels)
             {
                 _joinChannelQueue.Enqueue(channel);
             }
@@ -677,7 +684,6 @@ namespace TwitchLib.Client
                 await QueueingJoinCheckAsync();
             }
 
-            _joinedChannelManager.Clear();
             await OnReconnected.TryInvoke(sender, new Events.OnConnectedEventArgs(TwitchUsername));
         }
 
